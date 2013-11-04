@@ -28,7 +28,7 @@ will create columns out of the content of the DOM element with ID `content`.
 ### Options
 By default, the columns will be automatically made as high as possible without introducing vertical scrolling to your page. You can customize your columns with different options:
 
-- **height**: Defines the maximium height of a column. Can be set to a number, like `600`, which is a pixel-value, or to `auto` to make the columns as high as the page allows them to be without introducing vertical scrolling. Default: `auto`.
+- **height**: Defines the maximium height of a column. Can be set to a number, like `600`, which is a pixel-value, or to `auto` to make the columns as high as the page allows them to be without introducing vertical scrolling. Using `auto` also autoamtically refreshes the columns when the browser window is resized. Default: `auto`.
 - **maxHeight**: The maximum height of columns in pixels. Only has an affect if height is set to `auto`. Columns will never be made larger than this size. Can be set to `-1` when the page size should be the limit. Default: `-1`.
 - **columnWidth**: The width of an individual column in pixels. Default: `200`.
 - **columnGap**: The space between two columns in pixels. Default: `20`.
