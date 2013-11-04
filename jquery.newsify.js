@@ -1,4 +1,8 @@
 (function ( $ ) {
+	//Constants
+	var BOTH_AXIS = 0;
+	var X_AXIS_ONLY = 1;
+	var Y_AXIS_ONLY = 2;
 
 	//TODO: dynamically calculare the accuracy
 	/** Defaults for options **/
@@ -28,6 +32,9 @@
 		recreate that DOM structure if a new column starts. **/
 	var openContainerTemplates;
 
+	var openImages;
+	var suspendedImages;
+
 	$.fn.newsify = function( passedOptions ) {
 		//We save the originalOptions because we might adjust the options for each
 		//passed element which we will traverse next
@@ -40,6 +47,8 @@
 			columnCount = 0;
 			openContainerTemplates = [];
 			openContainers = [];
+			openImages = [];
+			suspendedImages = [];
 			options = $.extend(true, {}, originalOptions);
 
 			//create clone of source so we keep a copy of the original data
@@ -68,6 +77,7 @@
 			$(this).empty();
 
 			wrapper.css('height', options.height);
+			//wrapper.css('width', '0px');
 			//Create the initial column and put the wrapper in the DOM (otherwise it always has a height of 0)
 			//then do the actual columnification
 			moveToNewColumn();
@@ -124,6 +134,7 @@
 	}
 
 	function moveToNewColumn() {
+		console.log("creating new column");
 		column = $('<div></div>');
 		column.css({
 			'display': "inline-block", 
@@ -139,17 +150,36 @@
 			openContainers.push(addedContainer);
 		});
 
+		//TODO too dirty. we change the width here, set the margin-right and do the same in newsify() 
+		//maybe we can merge this into one somehow?
+		//We need to give the new column enough space. Otherwise it might be temporarily put into a
+		//new row, which messes up its position and therefore the intersection tests etc.
+		wrapper.css('width', wrapper.width()+options.columnWidth+options.columnGap+'px');
 		wrapper.append(column);
 		columnCount++;
+
+		//look for open images that ended in the last column and therefore are not considered "open" again
+		$.each(openImages, function(index, image) {
+			if (doIntersect(column, image, X_AXIS_ONLY) == false) { 
+				openImages.splice(openImages.indexOf(image), 1);
+				console.log("removed image");
+			}
+		});
+
+		$.each(suspendedImages, function(index, image) {
+			addNode(image);
+			suspendedImages.splice(suspendedImages.indexOf(image), 1);
+		});
 	}
 
 	function addNode(node, canSplit) {
 		node = $(node);
 		if (canSplit !== false) canSplit = true;
 		
-		var addedNode = addToColumn(node);
+		var addedNode = addToColumn(node); 
 		
-		if (column.height() > options.height) {
+		var doesIntersect = doIntersect(addedNode, openImages);
+		if (column.height() > options.height || doesIntersect) {
 			//if the column gets too high by adding this node, we need to do something
 			addedNode.remove();
 
@@ -177,12 +207,47 @@
 				//If yes, the node cannot be split and is moved to the next column
 				//TODO: if we have a leaf that is heigher than options.height, 
 				//		this will produce an infinite loop
-				if (addedNode.contents().length > 0) {
-					columnize(addedNode);
-				} else {
-					moveToNewColumn();
+				if (doesIntersect) {
+					//TODO this is a little dirty
+					//can we get the height of the intersecting image and insert a div with the same height?
+					//also: what if the image ends at half the column width? we could fit text right of it!
+					addToColumn($('<div style="height: 0.5em;"></div>'));
 					addNode(addedNode);
+				} else {
+					if (addedNode.is('img')) {
+						suspendedImages.push(addedNode);
+					} else {
+						if (addedNode.contents().length > 0) {
+							columnize(addedNode);
+						} else {
+							moveToNewColumn();
+							addNode(addedNode);
+						}
+					}
 				}
+			}
+		} else {
+			//everything fitted fine
+			//remember all image-like elements that are wider than a single column
+			if (addedNode.is('img') && addedNode.width() > options.columnWidth) {
+				openImages.push(addedNode);
+				console.log('detected image at '+addedNode.offset().left+', '+addedNode.offset().top+' of size '+addedNode.width()+'x'+addedNode.height());
+			} else {
+				addedNode.contents().filter(function() {
+					return $(this).is('img');
+				}).each(function () {
+					//we only receive images of the node we just added
+					var image = $(this);
+					console.log("checking "+image.width()+" against "+options.columnWidth);
+					if (image.width() > options.columnWidth) {
+						//the image is wider than a column - we need to remember it
+						openImages.push(image);
+						console.log('detected child image at '+image.offset().left+', '+image.offset().top+' of size '+image.width()+'x'+image.height());
+					}
+					// images.push(image);
+					// image.remove();
+					// console.log('detected image of size '+image.width()+'x'+image.height());
+				});
 			}
 		}
 	}
@@ -194,8 +259,14 @@
 	 **
 	 ** This method clones the given node and adds it in order to leave the original node untouched
 	 **/
-	function addToColumn(node) {
-		var nodeToAdd = node.clone();
+	function addToColumn(node, doClone) {
+		if (doClone !== false) doClone = true;
+
+		var nodeToAdd = node;
+		if (doClone) {
+			nodeToAdd = node.clone();
+		}
+
 		if (openContainers.length == 0) {
 			column.append(nodeToAdd);
 		} else {
@@ -213,6 +284,71 @@
 		}
 
 		return "newsifyClone"+counter;
+	}
+
+	/**
+	 ** Checks if two elements intersect. If so returns true.
+	 ** Both parameters can be arrays of elements instead. If so, if any of the elements in the first array
+	 ** intersect any of the elements in the second array, this will return true.
+	 **/
+	function doIntersect(e1, e2, mode) {
+		if (e1 == undefined || e2 == undefined) return false;
+		if ($.isArray(e1) && e1.length == 0) return false;
+		if ($.isArray(e2) && e2.length == 0) return false;
+		if (mode == undefined) mode = BOTH_AXIS;
+
+		if ($.isArray(e1) === false) e1 = [e1];
+		if ($.isArray(e2) === false) e2 = [e2];
+
+		var returnValue = false;
+		$.each(e1, function(index, single1) {
+			$.each(e2, function(index, single2) {
+				if (_doIntersectSingle(single1, single2, mode)) {
+					returnValue = true;
+					return false;
+				}
+			});
+			if (returnValue == true) return false;
+		});
+
+		return returnValue;
+	}
+
+	function _doIntersectSingle(e1, e2, mode) {
+		var e1Left, e1Right, e1Top, e1Bottom, e2Left, e2Right, e2Top, e2Bottom;
+
+		if (e1[0].nodeType === Node.TEXT_NODE) {
+			var span = $('<span></span>');
+			e1.wrap(span);
+			e1 = e1.parent();
+		}
+		e1Left = e1.offset().left;
+		e1Right = e1Left + Math.max(1, e1.width());
+		e1Top = e1.offset().top;
+		e1Bottom = e1Top + Math.max(1, e1.height());
+
+		if (e2[0].nodeType === Node.TEXT_NODE) {
+			var span = $('<span></span>');
+			e2.wrap(span);
+			e2 = e2.parent();
+		} 
+		e2Left = e2.offset().left;
+		e2Right = e2Left + Math.max(1, e2.width());
+		e2Top = e2.offset().top;
+		e2Bottom = e2Top + Math.max(1, e2.height());
+
+		var intersects_x = !(e2Left >= e1Right || e2Right <= e1Left);
+		var intersects_y = !(e2Top >= e1Bottom || e2Bottom <= e1Top);
+
+		if (mode == X_AXIS_ONLY) return intersects_x;
+		if (mode == Y_AXIS_ONLY) return intersects_y;
+		return (intersects_x && intersects_y);
+
+		// return !( e2Left >= e1Right
+		//     || e2Right <= e1Left
+		//     || e2Top >= e1Bottom
+		//     || e2Bottom <= e1Top
+		// );
 	}
 
 }( jQuery ));
