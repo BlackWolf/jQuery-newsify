@@ -1,7 +1,7 @@
 jQuery-newsify
 ==============
 
-A plugin for jQuery that reformats text and other media into columns. In contrast to CSS3 columns and jQuery columnizer it is designed to support other media like images inside the columns as well. Furthermore, it is also designed to create horizontal page layouts.
+A plugin for jQuery that reformats text and other media into columns. In contrast to CSS3 columns and jQuery columnizer it is designed to support other media like images inside the columns and can handle any kind of nested content in your text.
 
 ### A word of caution
 First of all, this plugin is currently in development and in **beta state**. There is a lot of functionality missing as of now and bugs can happen! If you find a problem, feel free to open an issue on github.  
@@ -28,12 +28,12 @@ will create columns out of the content of the DOM element with ID `content`.
 ### Options
 By default, the columns will be automatically made as high as possible without introducing vertical scrolling to your page. You can customize your columns with different options:
 
-- **height**: Defines the maximium height of a column. Can be set to a number, like `600`, which is a pixel-value, or to `auto` to make the columns as high as the page allows them to be without introducing vertical scrolling. Using `auto` also autoamtically refreshes the columns when the browser window is resized. Default: `auto`.
+- **height**: Defines the maximium height of a column. Can be set to a number, like `600`, which is a pixel-value, or to `auto` to make the columns as high as the page allows them to be without introducing vertical scrolling. Using `auto` also automatically refreshes the columns when the browser window is resized. Default: `auto`.
 - **maxHeight**: The maximum height of columns in pixels. Only has an affect if height is set to `auto`. Columns will never be made larger than this size. Can be set to `-1` when the page size should be the limit. Default: `-1`.
 - **columnWidth**: The width of an individual column in pixels. Default: `200`.
 - **columnGap**: The space between two columns in pixels. Default: `20`.
-- *cssPrefix*: The prefix that is prepended to css classes created by newsify. Default: `newsify_`.
-- **splitAccuracy**: newsify tries to put as much text in a column as possible before starting a new column. This option defines how accuratly the available space for text is checked. Lower values mean space in columns are better utilized, but it needs more time to compute which can be a problem for large amounts of content. Only touch this if the newsification takes too long. Default: `10`.
+- **cssPrefix**: The prefix that is prepended to css classes created by newsify. Default: `newsify_`.
+- **splitAccuracy**: newsify tries to put as much text in a column as possible before starting a new column. This option defines how accuratly the available space for text is checked. Lower values mean space in columns is better utilized, but it needs more time to compute which can be a problem for large amounts of content. Only touch this if the columnization takes too long. Default: `10`.
 
 ### Styling the columns
 newsify attaches a CSS class to every column it creates. By default, this class is `newsify_column`, but you can change that by changing the `cssPrefix` property.  
@@ -45,7 +45,7 @@ There are a few things you should remember to make your columns look good. One t
 	    text-align: justify;
     }
 
-Besides that, remember that elements like images look their best when they align with the columns. So if you `columnWidth` is `200` and you `columnGap` is `20`, then your image should have a width of 200px (1 column), 420px (2 columns), 640px (3 columns) etc. to look its best.
+Besides that, remember that elements like images often look their best when they align with the columns. So if your `columnWidth` is `200` and your `columnGap` is `20`, then your image should have a width of 200px (1 column), 420px (2 columns), 640px (3 columns) etc. to look its best.
 
 ### Examples
 Some examples how to use this plugin:
@@ -59,8 +59,8 @@ Planned Features
 As I said before, this plugin is currently in development. There are features planned that will be coming in the future. Amongst those are:
 
 - non-floating images: right now images always behave "floating", which means they are pushed into the next column if necessary, changing their position in the text. There will be an option to prevent this
-- auto-sizing images: Right now, image widths need to be adjusted to span multiple columns. In the future a `columnSpan` property will be introduced that allows users to define how many columns an image should span
-- number of columns property: Right now, the column height and width can be set. In the future, instead of a height and width the amount of desired columns can be given
+- auto-sizing images: Right now, image widths need to be adjusted manually to span multiple columns. In the future a `columnSpan` property will be introduced that allows users to define how many columns an image should span
+- fixed number of columns: Right now, the column height and width can be set. In the future, instead of a height and width the amount of desired columns can be given
 
 Known Issues
 ------------
