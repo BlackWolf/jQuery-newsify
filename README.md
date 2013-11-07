@@ -66,9 +66,14 @@ Known Issues
 ------------
 Also, there are some known bugs in this version of the script:
 
-- Right now, images that are heigher than the columns will not work. It might even break the entire script. Fix is coming!
+- images that are higher than the columns will not work. It might even break the entire script.
+- html comments are stripped in the process of columnization.
 
 Changelog
 ---------
+### version 0.11
+- text nodes are no longer unnecessarily wrapped in <span> tags
+- code cleanup
+
 ### version 0.1
 - Added basic image support
