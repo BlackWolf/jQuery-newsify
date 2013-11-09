@@ -9,10 +9,11 @@
 	var defaultOptions = {
 		height: "auto",
 		maxHeight: -1,
+		minHeight: -1,
 		columnWidth: 200,
 		columnGap: 20,
 		splitAccuracy: 10,
-		cssPrefix: "newsify_",
+		prefix: "newsify_",
 	};
 
 	/** options should be available globally, so we define the options var here **/
@@ -40,6 +41,24 @@
 
 	$.fn.newsify = function(passedOptions) {
 		var originalOptions = $.extend({}, defaultOptions, passedOptions);
+		
+		//Legacy options
+		//"prefix" was "cssPrefix" earlier
+		if ('cssPrefix' in originalOptions) {
+			console.warn("newsify: Option 'cssPrefix' is deprecated. Use 'prefix' instead.");
+			
+			if (('prefix' in passedOptions) == false) {
+				originalOptions.prefix = originalOptions.cssPrefix;	
+			}
+			delete originalOptions.cssPrefix;
+		}
+		
+		//Options sanity checks
+		if (originalOptions.minHeight > 0 && originalOptions.maxHeight > 0 && originalOpptions.minHeight > originalOptions.maxHeight) {
+			var t = originalOptions.minHeight;
+			originalOptions.minHeight = originalOptions.maxHeight;
+			originalOptions.maxHeight = t;
+		}
 
 		return this.each(function() {
 			//Reset global variables
@@ -71,6 +90,7 @@
 				options.height = $(window).height() - ($(document.body).outerHeight() - $(this).height());
 			}
 			if (options.maxHeight > 0) options.height = Math.min(options.height, options.maxHeight);
+			if (options.minHeight > 0) options.height = Math.max(options.height, options.minHeight);
 
 			//$(this) was cloned into source, now empty $(this) and fill it with columns
 			$(this).empty();
@@ -81,6 +101,8 @@
 			moveToNewColumn();
 			$(this).append(wrapper);
 			columnizeContainer(source, false);
+			
+			//TODO do stuff in case we have openImages at this point (they exceed the last column)
 
 			column.css('margin-right', '0px'); //remove the right margin from the last column created
 
@@ -134,6 +156,16 @@
 		if (splitTextNode !== false) splitTextNode = true;
 		
 		var nodeClone = node.clone();
+		
+		if (nodeClone.is('img')) {
+			_sizeImage(nodeClone);
+		} else {
+			nodeClone.contents().filter(function() { return $(this).is('img'); })
+			.each(function () {
+				_sizeImage(this);
+			});
+		}
+		
 		insertNodeIntoColumn(nodeClone); 
 		
 		var doesIntersect = doIntersect(nodeClone, openImages);
@@ -166,14 +198,15 @@
 		} else {
 			//the node fitted in the column. remember images that span more than the current column
 			//this allows us to avoid text intersecting with those images in successive columns
-			if (nodeClone.is('img') && nodeClone.width() > options.columnWidth) {
-				openImages.push(nodeClone);
+			if (nodeClone.is('img')) {
+				if (nodeClone.width() > options.columnWidth) {
+					openImages.push(nodeClone);
+				}
 				return false;
 			}
 			
-			nodeClone.contents().filter(function() {
-				return $(this).is('img');
-			}).each(function () {
+			nodeClone.contents().filter(function() { return $(this).is('img'); })
+			.each(function () {
 				var image = $(this);
 				if (image.width() > options.columnWidth) {
 					openImages.push(image);
@@ -182,6 +215,66 @@
 		}
 	}
 	
+	/**
+	 ** Adds a node to the current column, respecting the currently open containers.
+	 **	If no containers are open, the node is added directly to the column, otherwise
+	 **	it is added to the deepest open container.
+	 **/
+	function insertNodeIntoColumn(node) {
+		if (openContainers.length == 0) {
+			column.append(node);
+		} else {
+			var deepestContainer = openContainers[openContainers.length-1];
+			deepestContainer.append(node);
+		}
+	}
+	
+	function moveToNewColumn() {		
+		column = $('<div></div>');
+		column.css({
+			'display': "inline-block", 
+			'width': 	options.columnWidth+'px',
+			'margin-right': options.columnGap+'px',
+		});
+		column.addClass(options.prefix+'column');
+
+		//clone all open container templates into the new column. this is done so the DOM structure is kept. 
+		//example: a new column starts in the middle of a div with class "foo"
+		//when the new column starts, the div is closed and this code creates a new div with class foo in the new column
+		openContainers = [];
+		$.each(openContainerTemplates, function(index, template) {
+			var container = template.clone();
+			insertNodeIntoColumn(container);
+
+			openContainers.push(container);
+		});
+
+		//TODO too dirty. we change the width here, set the margin-right and do the same in newsify() 
+		//maybe we can merge this into one somehow?
+		//We need to give the new column enough space. Otherwise it might be temporarily put into a
+		//new row, which messes up its position and therefore the intersection tests
+		wrapper.css('width', wrapper.width()+options.columnWidth+options.columnGap+'px');
+		wrapper.append(column);
+		columnCount++;
+
+		//close images that ended in the last column
+		var remainingOpenImages = [];
+		$.each(openImages, function(index, image) {
+			if (doIntersect(column, image, X_AXIS_ONLY) == true) {
+				remainingOpenImages.push(image); 
+			}
+		});
+		openImages = remainingOpenImages;
+
+		//add suspended images to the new column
+		//if an image still doesn't fit it is re-added to suspendedImages by columnizeNode()
+		var suspendedImagesCopy = suspendedImages.slice(0);
+		suspendedImages = [];
+		$.each(suspendedImagesCopy, function(index, image) {
+			newColumnizeNode(image);
+		});
+	}
+		
 	/**
 	 ** Splits a text node into chunks of text and adds each chunk to the column separately.
 	 ** This allows us to distribute text nodes over multiple columns.
@@ -206,145 +299,73 @@
 		}
 	}
 	
-	/**
-	 ** Adds a node to the current column, respecting the currently open containers.
-	 **	If no containers are open, the node is added directly to the column, otherwise
-	 **	it is added to the deepest open container.
+	/** 
+	 ** Sets the size of an image, taking sizing attributes 
+	 ** and constraints like column height into account.
 	 **/
-	function insertNodeIntoColumn(node) {
-		if (openContainers.length == 0) {
-			column.append(node);
-		} else {
-			var deepestContainer = openContainers[openContainers.length-1];
-			deepestContainer.append(node);
-		}
-	}
-	
-	function moveToNewColumn() {
-		console.log("creating new column");
-		column = $('<div></div>');
-		column.css({
-			'display': "inline-block", 
-			'width': 	options.columnWidth+'px',
-			'margin-right': options.columnGap+'px',
-		});
-		column.addClass(options.cssPrefix+'column');
-
-		//clone all open container templates into the new column. this is done so the DOM structure is kept. 
-		//example: a new column starts in the middle of a div with class "foo"
-		//when the new column starts, the div is closed and this code creates a new div with class foo in the new column
-		openContainers = [];
-		$.each(openContainerTemplates, function(index, template) {
-			var container = template.clone();
-			insertNodeIntoColumn(container);
-
-			openContainers.push(container);
-		});
-
-		//TODO too dirty. we change the width here, set the margin-right and do the same in newsify() 
-		//maybe we can merge this into one somehow?
-		//We need to give the new column enough space. Otherwise it might be temporarily put into a
-		//new row, which messes up its position and therefore the intersection tests
-		wrapper.css('width', wrapper.width()+options.columnWidth+options.columnGap+'px');
-		wrapper.append(column);
-		columnCount++;
-
-		//close images that ended in the last column
-		$.each(openImages, function(index, image) {
-			if (doIntersect(column, image, X_AXIS_ONLY) == false) { 
-				openImages.splice(openImages.indexOf(image), 1);
-				console.log("removed image");
-			}
-		});
-
-		//add suspended images to the new column
-		$.each(suspendedImages, function(index, image) {
-			newColumnizeNode(image);
-			suspendedImages.splice(suspendedImages.indexOf(image), 1);
-		});
-	}
-
-/*
-	function columnizeNode(node, canSplit) {
-		node = $(node);
-		if (canSplit !== false) canSplit = true;
+	function _sizeImage(image) {
+		image = $(image);
 		
-		var addedNode = addToColumn(node); 
+		var nativeWidth = image[0].naturalWidth;
+		var nativeHeight = image[0].naturalHeight;
 		
-		var doesIntersect = doIntersect(addedNode, openImages);
-		if (column.height() > options.height || doesIntersect) {
-			//if the column gets too high by adding this node, we need to do something
-			addedNode.remove();
-
-			if (addedNode[0].nodeType === Node.TEXT_NODE && canSplit) {
-				//if the node is a text node, we can split it up into small text parts
-				var text = addedNode.text();
-
-				while (text.length > 0) {
-					var firstSpaceIndex = text.indexOf(' ', options.splitAccuracy);
-					var splitText = '';
-					if (firstSpaceIndex != -1) {
-						splitText = text.substring(0, firstSpaceIndex);
-						text = text.substr(firstSpaceIndex);
-					} else {
-						splitText = text;
-						text = '';
-					}
-
-					var splitTextNode = document.createTextNode(splitText);
-					columnizeNode(splitTextNode, false);
+		if (image.attr(options.prefix+"columnSpan")) {
+			var columnSpan = image.attr(options.prefix+"columnSpan");
+			if (/^[0-9]+$/.test(columnSpan) == true) {
+				//columnSpan property of image was given - size image to span as many columns
+				
+				var newWidth, newHeight;
+				do {
+					newWidth = columnSpan*options.columnWidth + (columnSpan-1)*options.columnGap;
+					newHeight = nativeHeight * (newWidth/nativeWidth);
+					
+					columnSpan--;
+				} while (newWidth > nativeWidth && image.attr(options.prefix+'allowOverscale') != "true" && columnSpan > 0)
+				
+				if (newWidth > nativeWidth) {
+					//the image is smaller than a single column
+					newWidth = nativeWidth;
+					newHeight = nativeHeight;	
 				}
+				
+				image.css('width', newWidth+'px');
+				image.css('height', newHeight+'px');
 			} else {
-				//If the node is a not a text node, check if it is a leaf
-				//If not, go deeper into the DOM to search for splittable elementsw
-				//If yes, the node cannot be split and is moved to the next column
-				//TODO: if we have a leaf that is heigher than options.height, 
-				//		this will produce an infinite loop
-				if (doesIntersect) {
-					//TODO this is a little dirty
-					//can we get the height of the intersecting image and insert a div with the same height?
-					//also: what if the image ends at half the column width? we could fit text right of it!
-					addToColumn($('<div style="height: 0.5em;"></div>')); 
-					columnizeNode(addedNode);
-				} else {
-					if (addedNode.is('img')) {
-						suspendedImages.push(addedNode);
-					} else {
-						if (addedNode.contents().length > 0) {
-							columnizeContainer(addedNode);
-						} else {
-							moveToNewColumn();
-							columnizeNode(addedNode);
-						}
-					}
-				}
-			}
-		} else {
-			//everything fitted fine
-			//remember all image-like elements that are wider than a single column
-			if (addedNode.is('img') && addedNode.width() > options.columnWidth) {
-				openImages.push(addedNode);
-				console.log('detected image at '+addedNode.offset().left+', '+addedNode.offset().top+' of size '+addedNode.width()+'x'+addedNode.height());
-			} else {
-				addedNode.contents().filter(function() {
-					return $(this).is('img');
-				}).each(function () {
-					//we only receive images of the node we just added
-					var image = $(this);
-					console.log("checking "+image.width()+" against "+options.columnWidth);
-					if (image.width() > options.columnWidth) {
-						//the image is wider than a column - we need to remember it
-						openImages.push(image);
-						console.log('detected child image at '+image.offset().left+', '+image.offset().top+' of size '+image.width()+'x'+image.height());
-					}
-					// images.push(image);
-					// image.remove();
-					// console.log('detected image of size '+image.width()+'x'+image.height());
-				});
+				console.warn("newsify: columnSpan property is not a number for image "+image.attr('src'));
 			}
 		}
+		
+		//Determine if width and height were explictly set by the user
+		//Also, make sure that if width/height were only set as the element attribute, they
+		//are copied to the CSS of the image so jQuery's height()/width() return correct values
+		if (image.attr('height') == undefined && image[0].style.height.length == 0) {
+			image.data("newsify_explicit_height", false);
+			image.css('height', nativeHeight);
+		} else {
+			image.data("newsify_explicit_height", true);
+			if (image[0].style.height.length == 0) {
+				image.css('height', image.attr('height')+'px');
+			}
+		}
+		if (image.attr('width') == undefined && image[0].style.width.length == 0) {
+			image.data("newsify_explicit_width", false);
+			image.css('width', nativeWidth);
+		} else {
+			image.data("newsify_explicit_width", true);
+			if (image[0].style.width.length == 0) {
+				image.css('width', image.attr('width')+'px');
+			}
+		}
+		
+		//No image is allowed to be higher than a column
+		if (image.height() > options.height) {
+			var newHeight = options.height;
+			var newWidth = nativeWidth * (newHeight/nativeHeight);
+			
+			image.css('height', newHeight+'px');
+			if (image.data("newsify_explicit_width") != true) image.css('width', newWidth+'px');
+		}
 	}
-*/
 
 	/**
 	 ** Returns an element ID that is not used in the document yet.

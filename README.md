@@ -29,23 +29,38 @@ will create columns out of the content of the DOM element with ID `content`.
 By default, the columns will be automatically made as high as possible without introducing vertical scrolling to your page. You can customize your columns with different options:
 
 - **height**: Defines the maximium height of a column. Can be set to a number, like `600`, which is a pixel-value, or to `auto` to make the columns as high as the page allows them to be without introducing vertical scrolling. Using `auto` also automatically refreshes the columns when the browser window is resized. Default: `auto`.
-- **maxHeight**: The maximum height of columns in pixels. Only has an affect if height is set to `auto`. Columns will never be made larger than this size. Can be set to `-1` when the page size should be the limit. Default: `-1`.
+- **maxHeight**: The maximum height of columns in pixels. Only applies if **height** is set to `auto`. Auto-sized columns will never exceed this height. If set to `-1`, columns will be made as high as possible without introducing vertical scrolling to the page. Default: `-1`.
+- **minHeight**: The minimum height of columns in pixels. Only applies if **height** is set to `auto`. Auto-sized columns will never be smaller than this height. If set to `-1`, columns will be made as high as possible without introducing vertical scrolling to the page. Default: `-1`.
 - **columnWidth**: The width of an individual column in pixels. Default: `200`.
 - **columnGap**: The space between two columns in pixels. Default: `20`.
 - **cssPrefix**: The prefix that is prepended to css classes created by newsify. Default: `newsify_`.
-- **splitAccuracy**: newsify tries to put as much text in a column as possible before starting a new column. This option defines how accuratly the available space for text is checked. Lower values mean space in columns is better utilized, but it needs more time to compute which can be a problem for large amounts of content. Only touch this if the columnization takes too long. Default: `10`.
+- **splitAccuracy**: newsify tries to put as much text in a column as possible before starting a new column. This option defines how accurately the available space is checked. Lower values mean space in columns is better utilized, but it needs more time to compute which can be a problem for large amounts of content. Only touch this if the columnization takes too long. Default: `10`.
+
+#### Wait, what does height: auto do?
+The default for the `height` option is the value `auto`. This value can be used, for example, if you want your website to have a horizontal layout. It will determine the height of your page and make columns exactly the height so they fit in the browser window. This means that with this option. newsify will prevent vertical scrolling in your webpage. The nice thing is that the columns will automatically adjust when the user resizes the browser window.   
+Be aware that, without setting `minHeight` or `maxHeight`, newsify might also make your columns extremly small or big in very small or very big browser windows.  
+
+For a live example of this option, see the "autoHeight.html" in the "examples" folder.
 
 ### Styling the columns
-newsify attaches a CSS class to every column it creates. By default, this class is `newsify_column`, but you can change that by changing the `cssPrefix` property.  
+newsify attaches a CSS class to every column it creates. By default, this class is `newsify_column`, but you can change that by changing the `prefix` property.  
 
-There are a few things you should remember to make your columns look good. One thing is that columized text should be justified and text should be at the top. There are only rare cases where this should not happen. You can use the following CSS to achieve that:
+One thing that should be done on almost any page is justifying the column content. You can use the following CSS snippet to do that with the default `prefix` option:
 
     .newsify_column, .newsify_column * {
 	    vertical-align: top;
 	    text-align: justify;
     }
 
-Besides that, remember that elements like images often look their best when they align with the columns. So if your `columnWidth` is `200` and your `columnGap` is `20`, then your image should have a width of 200px (1 column), 420px (2 columns), 640px (3 columns) etc. to look its best.
+### Auto-sizing images
+newsify provides the ability to auto-size images with the help of an additional html attribute. By default that attribute is `newsify_columnSpan`, but the prefix can be changed by setting the `prefix` option. You can then use the attribute on any image in your columnized content:
+
+    <img src="./img/someImage.png" newsify_columnSpan="2"/>
+    
+This will tell newsify that it should be responsible for sizing the image and it will make the image span exactly two columns. As you can see, you don't even need to specify any width and height for the image.  
+Be aware that if the image resolution is not large enough to support the given number of columns, newsify will use a value for `columnSpan` that the image supports. If you want to suppress this behaviour (and therefore become overscaled, blurry images) you can set the `newsify_allowOverscale` property to `true`.
+
+For a live example of this option, see the "imageColumnSpan.html" in the "examples" folder.
 
 ### Examples
 Some examples how to use this plugin:
@@ -59,21 +74,31 @@ Planned Features
 As I said before, this plugin is currently in development. There are features planned that will be coming in the future. Amongst those are:
 
 - non-floating images: right now images always behave "floating", which means they are pushed into the next column if necessary, changing their position in the text. There will be an option to prevent this
-- auto-sizing images: Right now, image widths need to be adjusted manually to span multiple columns. In the future a `columnSpan` property will be introduced that allows users to define how many columns an image should span
 - fixed number of columns: Right now, the column height and width can be set. In the future, instead of a height and width the amount of desired columns can be given
+- magnetic images: it should be possible to set an attribute on images to attach them to other images. This can for example be used to make sure two images are always displayed next to each other, or two images slighly overlapping, to give the columns a more "magazine"-like feeling
+- testing and adjusting image-sizing features for retina displays
 
 Known Issues
 ------------
 Also, there are some known bugs in this version of the script:
 
-- images that are higher than the columns will not work. It might even break the entire script.
+- if the `height` option is set to `auto` but the webpage is already heigher than the browser window, the script may break.
+- if images are columnized, text lines below the image might have slighly off y-position compared to imageless columns
 - html comments are stripped in the process of columnization.
+- when an auto-sized image is sized to full column height, there might be an empty space to its right
+- margin/padding is not taken into account when positioning and sizing images: for example, an image that has more bottom-margin than a column is high will never be columnized to the screen. also, an image with margin-left/right will still be auto-sized as if it had no margin at all
 
 Changelog
 ---------
+### version 0.2
+- introduced `minHeight` option
+- introduced the `columnSpan` and `allowOverscale` attributes for iamges
+- some bug fixes in regard to image sizes, especially a major bug with images higher than columns. from now on, images can never be higher than the columns.
+- fixed a bug where multiple images close to each other would break the script
+
 ### version 0.11
-- text nodes are no longer unnecessarily wrapped in <span> tags
-- code cleanup
+- text nodes are no longer unnecessarily wrapped in `<span>` tags
+- major code cleanup
 
 ### version 0.1
 - Added basic image support
