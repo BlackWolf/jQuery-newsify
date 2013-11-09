@@ -37,7 +37,7 @@ By default, the columns will be automatically made as high as possible without i
 - **splitAccuracy**: newsify tries to put as much text in a column as possible before starting a new column. This option defines how accurately the available space is checked. Lower values mean space in columns is better utilized, but it needs more time to compute which can be a problem for large amounts of content. Only touch this if the columnization takes too long. Default: `10`.
 
 #### Wait, what does height: auto do?
-The default for the `height` option is the value `auto`. This value can be used, for example, if you want your website to have a horizontal layout. It will determine the height of your page and make columns exactly the height so they fit in the browser window. This means that with this option. newsify will prevent vertical scrolling in your webpage. The nice thing is that the columns will automatically adjust when the user resizes the browser window.   
+The default for the `height` option is the value `auto`. This will determine the height of your browser window and other elements on the page and fit columns into the browser window. This means that newsify will prevent vertical scrolling in your webpage. Columns automatically re-adjust when the browser window is resized.  
 Be aware that, without setting `minHeight` or `maxHeight`, newsify might also make your columns extremly small or big in very small or very big browser windows.  
 
 For a live example of this option, see the "autoHeight.html" in the "examples" folder.
@@ -45,10 +45,9 @@ For a live example of this option, see the "autoHeight.html" in the "examples" f
 ### Styling the columns
 newsify attaches a CSS class to every column it creates. By default, this class is `newsify_column`, but you can change that by changing the `prefix` property.  
 
-One thing that should be done on almost any page is justifying the column content. You can use the following CSS snippet to do that with the default `prefix` option:
+One thing that should be done on almost any page is justifying the column content. The following CSS snippet does that with the default `prefix` option:
 
     .newsify_column, .newsify_column * {
-	    vertical-align: top;
 	    text-align: justify;
     }
 
@@ -60,7 +59,7 @@ newsify provides the ability to auto-size images with the help of an additional 
 This will tell newsify that it should be responsible for sizing the image and it will make the image span exactly two columns. As you can see, you don't even need to specify any width and height for the image.  
 Be aware that if the image resolution is not large enough to support the given number of columns, newsify will use a value for `columnSpan` that the image supports. If you want to suppress this behaviour (and therefore become overscaled, blurry images) you can set the `newsify_allowOverscale` property to `true`.
 
-For a live example of this option, see the "imageColumnSpan.html" in the "examples" folder.
+For a live example of this option, see the "imageAutoSize.html" in the "examples" folder.
 
 ### Examples
 Some examples how to use this plugin:
@@ -77,6 +76,8 @@ As I said before, this plugin is currently in development. There are features pl
 - fixed number of columns: Right now, the column height and width can be set. In the future, instead of a height and width the amount of desired columns can be given
 - magnetic images: it should be possible to set an attribute on images to attach them to other images. This can for example be used to make sure two images are always displayed next to each other, or two images slighly overlapping, to give the columns a more "magazine"-like feeling
 - testing and adjusting image-sizing features for retina displays
+- width of wrapper: right now, the wrapper will also be as width as the columns, suppressing wrapping of columns. introduce an option to set the width of the wrapper or the number of columns per "row"
+- image positioning options: right now, images tend to get pushed to the top of columns. additional options for image positioning like "top" or "bottom" to have more control over where images end up would be nice
 
 Known Issues
 ------------
@@ -90,6 +91,10 @@ Also, there are some known bugs in this version of the script:
 
 Changelog
 ---------
+### version 0.21
+- columns and all children now enforce vertical-align: top, otherwise image intersection calculation will not work
+- a bug that prevented automatic re-newsification on browser window resize was fixed
+
 ### version 0.2
 - introduced `minHeight` option
 - introduced the `columnSpan` and `allowOverscale` attributes for iamges

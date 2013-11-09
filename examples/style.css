@@ -1,0 +1,26 @@
+html {
+	-webkit-text-size-adjust: none; /* Fuck you Mobile Safari */
+}
+
+body {
+	margin: 0;
+	padding: 0;
+	font-size: 13pt;
+	font-family: "Helvetica";
+	background-color: #333;
+	display: inline-block;
+}
+
+#content {
+	margin: 0;
+	display: inline-block;
+	padding: 15px;
+	background-color: white;
+	margin-top: 25px;
+	margin-bottom: 25px;
+	box-shadow: 0px 2px 7px #000, 0px -2px 7px #000;
+}
+
+.newsify_column, .newsify_column * {
+	text-align: justify;
+}

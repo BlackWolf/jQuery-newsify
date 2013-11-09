@@ -38,6 +38,9 @@
 	/** Remembers the images that did not fit in the current column and need to be 
 		inserted into the next column **/
 	var suspendedImages;
+	
+	/** Determines if the CSS rules needed by newsify have been added to the head **/
+	var addedCSS = false;
 
 	$.fn.newsify = function(passedOptions) {
 		var originalOptions = $.extend({}, defaultOptions, passedOptions);
@@ -58,6 +61,11 @@
 			var t = originalOptions.minHeight;
 			originalOptions.minHeight = originalOptions.maxHeight;
 			originalOptions.maxHeight = t;
+		}
+		
+		if (addedCSS == false) {
+			$("<style type='text/css'>."+originalOptions.prefix+"column, ."+originalOptions.prefix+"column * { vertical-align: top !important; }/style>").appendTo("head");
+			addedCSS = true;
 		}
 
 		return this.each(function() {
@@ -110,7 +118,7 @@
 			wrapper.css('width', (columnCount*options.columnWidth + (columnCount-1)*options.columnGap)+'px');
 
 			if (originalOptions.height == "auto" && $(this).data("newsify_resizeAttached") !== true) {
-				attachNewsifyOnWindowResize($(this));				
+				attachNewsifyOnWindowResize($(this), passedOptions);				
 				$(this).data("newsify_resizeAttached", true);
 			}
 		});
@@ -311,9 +319,9 @@
 		
 		if (image.attr(options.prefix+"columnSpan")) {
 			var columnSpan = image.attr(options.prefix+"columnSpan");
+			console.log(columnSpan);
 			if (/^[0-9]+$/.test(columnSpan) == true) {
 				//columnSpan property of image was given - size image to span as many columns
-				
 				var newWidth, newHeight;
 				do {
 					newWidth = columnSpan*options.columnWidth + (columnSpan-1)*options.columnGap;
@@ -333,27 +341,27 @@
 			} else {
 				console.warn("newsify: columnSpan property is not a number for image "+image.attr('src'));
 			}
-		}
-		
-		//Determine if width and height were explictly set by the user
-		//Also, make sure that if width/height were only set as the element attribute, they
-		//are copied to the CSS of the image so jQuery's height()/width() return correct values
-		if (image.attr('height') == undefined && image[0].style.height.length == 0) {
-			image.data("newsify_explicit_height", false);
-			image.css('height', nativeHeight);
 		} else {
-			image.data("newsify_explicit_height", true);
-			if (image[0].style.height.length == 0) {
-				image.css('height', image.attr('height')+'px');
+			//Determine if width and height were explictly set by the user
+			//Also, make sure that if width/height were only set as the element attribute, they
+			//are copied to the CSS of the image so jQuery's height()/width() return correct values
+			if (image.attr('height') == undefined && image[0].style.height.length == 0) {
+				image.data("newsify_explicit_height", false);
+				image.css('height', nativeHeight);
+			} else {
+				image.data("newsify_explicit_height", true);
+				if (image[0].style.height.length == 0) {
+					image.css('height', image.attr('height')+'px');
+				}
 			}
-		}
-		if (image.attr('width') == undefined && image[0].style.width.length == 0) {
-			image.data("newsify_explicit_width", false);
-			image.css('width', nativeWidth);
-		} else {
-			image.data("newsify_explicit_width", true);
-			if (image[0].style.width.length == 0) {
-				image.css('width', image.attr('width')+'px');
+			if (image.attr('width') == undefined && image[0].style.width.length == 0) {
+				image.data("newsify_explicit_width", false);
+				image.css('width', nativeWidth);
+			} else {
+				image.data("newsify_explicit_width", true);
+				if (image[0].style.width.length == 0) {
+					image.css('width', image.attr('width')+'px');
+				}
 			}
 		}
 		
@@ -455,7 +463,7 @@
 	 ** Attaches a resize handler on the window that columnizes the passed element
 	 ** when the window is resized.
 	 **/
-	function attachNewsifyOnWindowResize(el) {
+	function attachNewsifyOnWindowResize(el, passedOptions) {
 		var resizeTimer;
 		$(window).resize(function() {
 			clearTimeout(resizeTimer);
